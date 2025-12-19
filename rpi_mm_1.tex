@@ -52,8 +52,8 @@
 \newcommand{\tabreff}[2]{Tables~\ref{tab:#1} and \ref{tab:#2}}
 \newcommand{\tabrefff}[3]{Tables~\ref{tab:#1}, \ref{tab:#2} and \ref{tab:#3}}
 
-\def\year{2024--2025}
-\title{EITA65 Design of Systems for Digital Transformation\\\year}
+\def\year{2025--2026}
+\title{EITA66 Design of Systems for Digital Transformation\\\year}
 %\title{EITA65 Digitalisering -- realisering och systemdesign med användarperspektiv\\\year}
 \author{\huge Route Planning\\Drone Project -- Part 3}
 %\\Version \DTMnow}
@@ -66,7 +66,7 @@
 
 \begin{itemize}
 \item \includegraphics[width=3mm]{person.png}\includegraphics[width=3mm]{person.png} This project will be done in pairs, but you will work \textit{together} in groups of 3 or 4.
-\item You will not get detailed step-by-step instructions. Figuring out how to reach the goal is part of the project. (being a collaborative doer)
+\item You will not get detailed step-by-step instructions. Figuring out how to reach the goal is part of the project (being a collaborative doer).
 \item The results of this project part will be used in the next, so document your work.
 \end{itemize}
 
@@ -126,7 +126,7 @@ In this project part you will need to write a simple route planner for your dron
 You will write your own code based on {\color{blue}\href{https://github.com/rogerhenriksson/InfoCom-Drone-3-Route_Planning}{this GitHub repository}}. This is very similar to what you were working on in the two previous parts, Drone simulation on Raspberry Pi and Microservices, but you no longer need your joystick or keyboard on Raspberry Pi to control your drone. Instead, you write your own code so that your drone
 \begin{itemize}
     \item autonomously plans a path to move along,
-    \item sends updates of its real-time location to the Redis database along the way in order to display its location on the screen.
+    \item sends updates of its real-time location to the Redis database along the way in order to display its position on the map.
 \end{itemize}
 As for the previous labs, you are recommended to fork and clone from your own repository.
 
@@ -140,15 +140,15 @@ Since you no longer need the joystick on Raspberry pi, you can run this code on 
 
 In this application, you have three Flask servers running. When you fill in your own Redis URL in all three server scripts, you should be able to run the application with no error. When you have every server up and running, open the website hosted by \verb!build.py!, you will see the same map as you saw in previous labs, but with a new form.
 
-The form asks you to write two addresses, [From address] and [To address]. These are two addresses of your path that you want your drone to fly along. You can input any real addresses in Lund, and search for them. The two addresses will be submitted to the server \verb!route_planner.py!, which retrieves their OSM coordinates in (longitude, latitude).
+The form asks you to write two addresses, [From address] and [To address]. These are two addresses of your path that you want your drone to fly along. Imagine that the first address is a place you want the drone to go to in order to pick up a parcel, which should then be delivered to the second address. The drone should thus first fly to the first address and then continue on to the second one. You can input any real addresses in Lund, and search for them. The two addresses will be submitted to the server \verb!route_planner.py!, which retrieves their OSM coordinates in (longitude, latitude).
 
 \vspace{0.5cm}
 \noindent{\bf Question 1: }\parbox[t]{13cm}{\textcolor{red}{Take a look at \texttt{route\_planner.py} and \texttt{index.html}. What is the URL of the new route planner server?}} \vspace{0.5cm}
 
-The new route planner server takes the input addresses, and sends it to OpenStreetMap using \verb!geopy.geocoders.Nominatim!, which is a Python API that provides the commutation to OpenMapStreet to get the geographical information of a real address. In this application we are only interested in the longitude and latitude values of an address. When you submit the two addresses, you will have a window pop up, and it tells you whether the server can find the two addresses or not. If it could not, then you need to write a new address.
+\noindent The new route planner server takes the input addresses, and sends it to the OpenStreetMap service using \verb!geopy.geocoders.Nominatim!, which is a Python API that communicates with OpenMapStreet to get the geographical location of a real address. In this application we are only interested in the longitude and latitude values of an address. When you submit the two addresses, you will see a window pop up, telling you whether the server can find the two addresses or not. If it could not, then you need to write a new address.
 
-The route planner will invoke the \verb!/pi/pi_controller.py! script when it finds the two input addresses correctly.
-Thus in this project part, you do not need to run this script separately in another terminal. Contrary to what you did in the previous project parts, the \verb!/pi/pi_controller.py! in this lab should send its current location in (longitude, latitude) to the database server (instead of the direction of movement). Therefore, in \verb!database.py!, the script only takes the values sent from \verb!/pi/pi_controller.py!, and stores them in Redis, without any further processing.
+The route planner will in turn invoke the \verb!/pi/pi_controller.py! script when it finds the two input addresses correctly.
+Thus in this project part, you do not need to run this script separately in another terminal -- it is done automatically. Contrary to what you did in the previous project parts, the \verb!/pi/pi_controller.py! in this lab should send its current location in (longitude, latitude) to the database server (instead of the direction of movement). Therefore, in \verb!database.py!, the script only takes the values sent from \verb!/pi/pi_controller.py!, and stores them in Redis, without any further processing.
 
 \vspace{0.5cm}
 \noindent{\bf Question 2: }\parbox[t]{13cm}{\textcolor{red}{\Cref{fig:drone} shows the application architecture we used in instruction Part 2. Please add a new block to this figure, representing the \texttt{route\_planner} server, and add arrows to the other components it communicates with, and explain which messages are exchanged along the newly added message paths (the arrows). } } \vspace{0.5cm}
@@ -186,6 +186,7 @@ The functionalities the script should have are:
 % {\bf Hint 4: }\parbox[t]{14cm}{tab in instructions}\\
 % {\bf Hint 5: }\parbox[t]{14cm}{To avoid rewriting many commands, it can be a good idea to write all steps in a batch-file or shell script. Then you can also reuse the batch file for the second project.}
 
+\newpage
 \section{Hints on writing your route planner}
 
 The route planner can be written in several way, utilizing different strategies. Here we outline two different approaches, any of which you might find useful.
@@ -194,14 +195,32 @@ The route planner can be written in several way, utilizing different strategies.
 
 The idea here is to move a single step in the direction of the target each time \texttt{your\_function()} is called. We need to keep track of the current drone position and the current target.
 
-Begin by setting the current target to the from position. In \texttt{your\_function()}, check if you are very close to the target. If so, return the position of the target. Else, check if you are more than one step away from the target along the X axis and, if so, move one step along the X axis towards the target. Do the same for the Y axis. When you reach the target, and the target is the from position, change the target to the to position.
+Begin by setting the current target to the from position. In \texttt{your\_function()}, check if you are very close to the target (equal to or less than one step away). If so, return the position of the target. Else, check if you are more than one step away from the target along the X axis and, if so, move one step along the X axis towards the target. Do the same for the Y axis. When you reach the target, and the target is the from position, change the target to the to position.
 
-If you solve the problem like this the drone will only move in the cardinal (north, east, south, west), and intercardinal (northeast, southeast, southwest, northwest) directions. If you like, you can instead calculate and return the position one step away from the current position directly in the direction of the target using your trigonometry skills from high school.
+If you solve the problem like this the drone will only move in the cardinal (north, east, south, west), and intercardinal (northeast, southeast, southwest, northwest) directions. That is fine, but if you like you can instead calculate and return the position one step away from the current position directly in the direction of the target using your geometry skills from high school.
 
+\subsubsection{Math hint}
+
+Suppose the drone is currently located at $(x,y)$ and the target position is $(x_t,y_t)$. The number of remaining steps, assuming each step is $1/10000$ of a degree, is then (the symbols $\lceil$ $\rceil$ means you should round the number to the next bigger integer -- see the \texttt{ceil()} Python function):\\
+
+\begin{math}
+n = \lceil \sqrt{(x_t-x)^2+(y_t-y)^2} \cdot 10000 \rceil
+\end{math}
+\\
+
+\noindent The next drone position can then be calculated like this:\\
+
+\begin{math}
+x' = x + \frac{x_t - x}{n}
+\end{math}
+
+\begin{math}
+y' = y + \frac{y_t - y}{n}
+\end{math}
 
 \subsection{Method 2}
 
-This method makes use of the observation that the task of moving from one point to another point via a third point can be divided into two easier tasks. The entire contents of the \texttt{run()} method could be replaced by two calls to a function performing a single trip between two positions -- first from the current position to the from position and then from the from position to the to position:
+This method makes use of the observation that the task of moving from one point to another point via a third point can be divided into two easier tasks. The entire contents of the \texttt{run()} method could then be replaced by two calls to a function performing a single trip between two positions -- first from the current position to the from position and then from the from position to the to position:
 
 \vspace{2mm}
 
@@ -213,6 +232,31 @@ This method makes use of the observation that the task of moving from one point 
 \vspace{2mm}
 
 In the \texttt{travel()} function you can then use a simple for loop to visit a suitable number of positions along the line from the starting point to the end point. You should be able to use your math knowledge about geometry and similar triangles from high school to calculate the positions of the points along the line. Each time you have calculated the next position you need to send the new position to the database. At the end of the given \texttt{run()} function you can see how to do this (check out the code starting with ''\texttt{with requests.Session() as session:}'').
+
+If you choose this approach you no longer need to implement the \texttt{your\_function()} function calculating the next step. It can be fully replaced by the \texttt{travel()} function which handles the entire trip from the start point to the target.
+
+\newpage
+
+\subsubsection{Math hint}
+
+If we want to move from position $(x_1,y_1)$ to position $(x_2,y_2)$ in steps of $1/10000$ of a degree, a suitable number of steps, $n$, is (remember to round it to an integer):\\
+
+\begin{math}
+n = \sqrt{(x_2-x_1)^2+(y_2-y_1)^2} \cdot 10000
+\end{math}
+\\
+
+\noindent The drone position in step number $i$, is then given by:\\
+
+\begin{math}
+x_i = x_1 + \frac{i \cdot (x_2 - x_1)}{n}
+\end{math}
+
+\begin{math}
+y_i = y_1 + \frac{i \cdot (y_2 - y_1)}{n}
+\end{math}
+
+
 
 
 
